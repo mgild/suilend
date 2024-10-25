@@ -4,7 +4,7 @@ module suilend::decimal {
     const WAD: u256 = 1000000000000000000;
     const U64_MAX: u256 = 18446744073709551615;
 
-    struct Decimal has copy, store, drop {
+    public struct Decimal has copy, store, drop {
         value: u256
     }
 
@@ -74,9 +74,9 @@ module suilend::decimal {
         }
     }
 
-    public fun pow(b: Decimal, e: u64): Decimal {
-        let cur_base = b;
-        let result = from(1);
+    public fun pow(b: Decimal, mut e: u64): Decimal {
+        let mut cur_base = b;
+        let mut result = from(1);
 
         while (e > 0) {
             if (e % 2 == 1) {

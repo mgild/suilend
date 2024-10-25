@@ -25,9 +25,6 @@ module suilend::obligation {
     #[test_only]
     use sui::clock::{Self};
 
-    // === Friends ===
-    friend suilend::lending_market;
-
     // === Errors ===
     const EObligationIsNotLiquidatable: u64 = 0;
     const EObligationIsNotHealthy: u64 = 1;
@@ -44,8 +41,8 @@ module suilend::obligation {
     const MAX_DEPOSITS: u64 = 5;
     const MAX_BORROWS: u64 = 5;
 
-    // === Structs ===
-    struct Obligation<phantom P> has key, store {
+    // === public structs ===
+    public struct Obligation<phantom P> has key, store {
         id: UID,
         lending_market_id: ID,
 
@@ -85,7 +82,7 @@ module suilend::obligation {
         closable: bool
     }
 
-    struct Deposit has store {
+    public struct Deposit has store {
         coin_type: TypeName,
         reserve_array_index: u64,
         deposited_ctoken_amount: u64,
@@ -95,7 +92,7 @@ module suilend::obligation {
         attributed_borrow_value: Decimal
     }
 
-    struct Borrow has store {
+    public struct Borrow has store {
         coin_type: TypeName,
         reserve_array_index: u64,
         borrowed_amount: Decimal,
@@ -105,7 +102,7 @@ module suilend::obligation {
     }
 
     // === Events ===
-    struct ObligationDataEvent has drop, copy {
+    public struct ObligationDataEvent has drop, copy {
         lending_market_id: address,
         obligation_id: address,
 
@@ -126,7 +123,7 @@ module suilend::obligation {
         closable: bool
     }
 
-    struct DepositRecord has drop, copy, store {
+    public struct DepositRecord has drop, copy, store {
         coin_type: TypeName,
         reserve_array_index: u64,
         deposited_ctoken_amount: u64,
@@ -136,7 +133,7 @@ module suilend::obligation {
         attributed_borrow_value: Decimal
     }
 
-    struct BorrowRecord has drop, copy, store {
+    public struct BorrowRecord has drop, copy, store {
         coin_type: TypeName,
         reserve_array_index: u64,
         borrowed_amount: Decimal,
@@ -146,7 +143,7 @@ module suilend::obligation {
     }
 
     // === Public-Friend Functions
-    public(friend) fun create_obligation<P>(lending_market_id: ID, ctx: &mut TxContext): Obligation<P> {
+    public(package) fun create_obligation<P>(lending_market_id: ID, ctx: &mut TxContext): Obligation<P> {
         Obligation<P> {
             id: object::new(ctx),
             lending_market_id,
@@ -169,15 +166,15 @@ module suilend::obligation {
 
     /// update the obligation's borrowed amounts and health values. this is 
     /// called by the lending market prior to any borrow, withdraw, or liquidate operation.
-    public(friend) fun refresh<P>(
+    public(package) fun refresh<P>(
         obligation: &mut Obligation<P>,
         reserves: &mut vector<Reserve<P>>,
         clock: &Clock
     ) {
-        let i = 0;
-        let deposited_value_usd = decimal::from(0);
-        let allowed_borrow_value_usd = decimal::from(0);
-        let unhealthy_borrow_value_usd = decimal::from(0);
+        let mut i = 0;
+        let mut deposited_value_usd = decimal::from(0);
+        let mut allowed_borrow_value_usd = decimal::from(0);
+        let mut unhealthy_borrow_value_usd = decimal::from(0);
 
         while (i < vector::length(&obligation.deposits)) {
             let deposit = vector::borrow_mut(&mut obligation.deposits, i);
@@ -220,11 +217,11 @@ module suilend::obligation {
         obligation.allowed_borrow_value_usd = allowed_borrow_value_usd;
         obligation.unhealthy_borrow_value_usd = unhealthy_borrow_value_usd;
 
-        let i = 0;
-        let unweighted_borrowed_value_usd = decimal::from(0);
-        let weighted_borrowed_value_usd = decimal::from(0);
-        let weighted_borrowed_value_upper_bound_usd = decimal::from(0);
-        let borrowing_isolated_asset = false;
+        let mut i = 0;
+        let mut unweighted_borrowed_value_usd = decimal::from(0);
+        let mut weighted_borrowed_value_usd = decimal::from(0);
+        let mut weighted_borrowed_value_upper_bound_usd = decimal::from(0);
+        let mut borrowing_isolated_asset = false;
 
         while (i < vector::length(&obligation.borrows)) {
             let borrow = vector::borrow_mut(&mut obligation.borrows, i);
@@ -273,7 +270,7 @@ module suilend::obligation {
     }
 
     /// Process a deposit action
-    public(friend) fun deposit<P>(
+    public(package) fun deposit<P>(
         obligation: &mut Obligation<P>,
         reserve: &mut Reserve<P>,
         clock: &Clock,
@@ -322,7 +319,7 @@ module suilend::obligation {
     }
 
     /// Process a borrow action. Makes sure that the obligation is healthy after the borrow.
-    public(friend) fun borrow<P>(
+    public(package) fun borrow<P>(
         obligation: &mut Obligation<P>,
         reserve: &mut Reserve<P>,
         clock: &Clock,
@@ -372,7 +369,7 @@ module suilend::obligation {
     }
 
     /// Process a repay action. The reserve's interest must have been refreshed before calling this.
-    public(friend) fun repay<P>(
+    public(package) fun repay<P>(
         obligation: &mut Obligation<P>,
         reserve: &mut Reserve<P>,
         clock: &Clock,
@@ -457,7 +454,7 @@ module suilend::obligation {
     }
 
     /// Process a withdraw action. Makes sure that the obligation is healthy after the withdraw.
-    public(friend) fun withdraw<P>(
+    public(package) fun withdraw<P>(
         obligation: &mut Obligation<P>,
         reserve: &mut Reserve<P>,
         clock: &Clock,
@@ -471,7 +468,7 @@ module suilend::obligation {
 
     /// Process a liquidate action.
     /// Returns the amount of ctokens to withdraw, and the amount of tokens to repay.
-    public(friend) fun liquidate<P>(
+    public(package) fun liquidate<P>(
         obligation: &mut Obligation<P>,
         reserves: &mut vector<Reserve<P>>,
         repay_reserve_array_index: u64,
@@ -559,7 +556,7 @@ module suilend::obligation {
         (final_withdraw_amount, final_settle_amount)
     }
 
-    public(friend) fun forgive<P>(
+    public(package) fun forgive<P>(
         obligation: &mut Obligation<P>,
         reserve: &mut Reserve<P>,
         clock: &Clock,
@@ -575,7 +572,7 @@ module suilend::obligation {
         )
     }
 
-    public(friend) fun claim_rewards<P, T>(
+    public(package) fun claim_rewards<P, T>(
         obligation: &mut Obligation<P>,
         pool_reward_manager: &mut PoolRewardManager,
         clock: &Clock,
@@ -590,7 +587,7 @@ module suilend::obligation {
 
     // === Public-View Functions
     public fun deposited_ctoken_amount<P, T>(obligation: &Obligation<P>): u64 {
-        let i = 0;
+        let mut i = 0;
         while (i < vector::length(&obligation.deposits)) {
             let deposit = vector::borrow(&obligation.deposits, i);
             if (deposit.coin_type == type_name::get<T>()) {
@@ -604,7 +601,7 @@ module suilend::obligation {
     }
 
     public fun borrowed_amount<P, T>(obligation: &Obligation<P>): Decimal {
-        let i = 0;
+        let mut i = 0;
         while (i < vector::length(&obligation.borrows)) {
             let borrow = vector::borrow(&obligation.borrows, i);
             if (borrow.coin_type == type_name::get<T>()) {
@@ -631,7 +628,7 @@ module suilend::obligation {
     }
 
     // calculate the maximum amount that can be borrowed within an obligation
-    public(friend) fun max_borrow_amount<P>(obligation: &Obligation<P>, reserve: &Reserve<P>): u64 {
+    public(package) fun max_borrow_amount<P>(obligation: &Obligation<P>, reserve: &Reserve<P>): u64 {
         floor(reserve::usd_to_token_amount_lower_bound(
             reserve,
             div(
@@ -645,7 +642,7 @@ module suilend::obligation {
     }
 
     // calculate the maximum amount that can be withdrawn from an obligation
-    public(friend) fun max_withdraw_amount<P>(
+    public(package) fun max_withdraw_amount<P>(
         obligation: &Obligation<P>,
         reserve: &Reserve<P>,
     ): u64 {
@@ -683,7 +680,7 @@ module suilend::obligation {
         )
     }
 
-    public(friend) fun zero_out_rewards_if_looped<P>(
+    public(package) fun zero_out_rewards_if_looped<P>(
         obligation: &mut Obligation<P>, 
         reserves: &mut vector<Reserve<P>>,
         clock: &Clock
@@ -709,7 +706,7 @@ module suilend::obligation {
             vector[1, 2, 5], // 7 --> [1, 2, 5]
         ];
 
-        let i = 0;
+        let mut i = 0;
         while (i < vector::length(&obligation.borrows)) {
             let borrow = vector::borrow(&obligation.borrows, i);
 
@@ -733,7 +730,7 @@ module suilend::obligation {
             if (has_target_borrow_idx) {
                 let disabled_pairs = vector::borrow(&disabled_pairings_map, target_borrow_idx);
                 let pair_count = vector::length(disabled_pairs);
-                let i = 0;
+                let mut i = 0;
 
                 while (i < pair_count) {
                     let disabled_reserve_array_index = *vector::borrow(disabled_pairs, i);
@@ -763,7 +760,7 @@ module suilend::obligation {
         clock: &Clock
     ) {
         {
-            let i = 0;
+            let mut i = 0;
             while (i < vector::length(&obligation.deposits)) {
                 let deposit = vector::borrow(&obligation.deposits, i);
                 let reserve = vector::borrow_mut(reserves, deposit.reserve_array_index);
@@ -785,7 +782,7 @@ module suilend::obligation {
         };
 
         {
-            let i = 0;
+            let mut i = 0;
             while (i < vector::length(&obligation.borrows)) {
                 let borrow = vector::borrow(&obligation.borrows, i);
                 let reserve = vector::borrow_mut(reserves, borrow.reserve_array_index);
@@ -813,8 +810,8 @@ module suilend::obligation {
             obligation_id: object::uid_to_address(&obligation.id),
 
             deposits: {
-                let i = 0;
-                let deposits = vector::empty<DepositRecord>();
+                let mut i = 0;
+                let mut deposits = vector::empty<DepositRecord>();
                 while (i < vector::length(&obligation.deposits)) {
                     let deposit = vector::borrow(&obligation.deposits, i);
                     vector::push_back(&mut deposits, DepositRecord {
@@ -832,8 +829,8 @@ module suilend::obligation {
                 deposits
             },
             borrows: {
-                let i = 0;
-                let borrows = vector::empty<BorrowRecord>();
+                let mut i = 0;
+                let mut borrows = vector::empty<BorrowRecord>();
                 while (i < vector::length(&obligation.borrows)) {
                     let borrow = vector::borrow(&obligation.borrows, i);
                     vector::push_back(&mut borrows, BorrowRecord {
@@ -951,7 +948,7 @@ module suilend::obligation {
         obligation: &Obligation<P>,
         reserve: &Reserve<P>,
     ): u64 {
-        let i = 0;
+        let mut i = 0;
         while (i < vector::length(&obligation.deposits)) {
             let deposit = vector::borrow(&obligation.deposits, i);
             if (deposit.reserve_array_index == reserve::array_index(reserve)) {
@@ -968,7 +965,7 @@ module suilend::obligation {
         obligation: &Obligation<P>,
         reserve_array_index: u64,
     ): u64 {
-        let i = 0;
+        let mut i = 0;
         while (i < vector::length(&obligation.deposits)) {
             let deposit = vector::borrow(&obligation.deposits, i);
             if (deposit.reserve_array_index == reserve_array_index) {
@@ -985,7 +982,7 @@ module suilend::obligation {
         obligation: &Obligation<P>,
         reserve: &Reserve<P>,
     ): u64 {
-        let i = 0;
+        let mut i = 0;
         while (i < vector::length(&obligation.borrows)) {
             let borrow = vector::borrow(&obligation.borrows, i);
             if (borrow.reserve_array_index == reserve::array_index(reserve)) {
@@ -1080,7 +1077,7 @@ module suilend::obligation {
         obligation: &Obligation<P>,
         pool_reward_manager: &PoolRewardManager,
     ): u64 {
-        let i = 0;
+        let mut i = 0;
         while (i < vector::length(&obligation.user_reward_managers)) {
             let user_reward_manager = vector::borrow(&obligation.user_reward_managers, i);
             if (liquidity_mining::pool_reward_manager_id(user_reward_manager) == object::id(pool_reward_manager)) {
@@ -1112,22 +1109,22 @@ module suilend::obligation {
 
     // === Test Functions ===
     #[test_only]
-    struct TEST_MARKET {}
+    public struct TEST_MARKET {}
 
     #[test_only]
-    struct TEST_SUI {}
+    public struct TEST_SUI {}
 
     #[test_only]
-    struct TEST_USDC {}
+    public struct TEST_USDC {}
 
     #[test_only]
-    struct TEST_USDT {}
+    public struct TEST_USDT {}
 
     #[test_only]
-    struct TEST_ETH {}
+    public struct TEST_ETH {}
     
     #[test_only]
-    struct TEST_AUSD {}
+    public struct TEST_AUSD {}
 
     #[test_only]
     use suilend::reserve_config::{Self, default_reserve_config};
@@ -1135,18 +1132,18 @@ module suilend::obligation {
     #[test_only]
     fun sui_reserve<P>(scenario: &mut Scenario): Reserve<P> {
         let config = default_reserve_config();
-        let builder = reserve_config::from(&config, test_scenario::ctx(scenario));
+        let mut builder = reserve_config::from(&config, test_scenario::ctx(scenario));
         reserve_config::set_open_ltv_pct(&mut builder, 20);
         reserve_config::set_close_ltv_pct(&mut builder, 50);
         reserve_config::set_max_close_ltv_pct(&mut builder, 50);
         reserve_config::set_interest_rate_utils(&mut builder, {
-            let v = vector::empty();
+            let mut v = vector::empty();
             vector::push_back(&mut v, 0);
             vector::push_back(&mut v, 100);
             v
         });
         reserve_config::set_interest_rate_aprs(&mut builder, {
-            let v = vector::empty();
+            let mut v = vector::empty();
             vector::push_back(&mut v, 31536000 * 4);
             vector::push_back(&mut v, 31536000 * 8);
             v
@@ -1172,19 +1169,19 @@ module suilend::obligation {
     #[test_only]
     fun usdc_reserve<P>(scenario: &mut Scenario): Reserve<P> {
         let config = default_reserve_config();
-        let builder = reserve_config::from(&config, test_scenario::ctx(scenario));
+        let mut builder = reserve_config::from(&config, test_scenario::ctx(scenario));
         reserve_config::set_open_ltv_pct(&mut builder, 50);
         reserve_config::set_close_ltv_pct(&mut builder, 80);
         reserve_config::set_max_close_ltv_pct(&mut builder, 80);
         reserve_config::set_borrow_weight_bps(&mut builder, 20_000);
         reserve_config::set_interest_rate_utils(&mut builder, {
-            let v = vector::empty();
+            let mut v = vector::empty();
             vector::push_back(&mut v, 0);
             vector::push_back(&mut v, 100);
             v
         });
         reserve_config::set_interest_rate_aprs(&mut builder, {
-            let v = vector::empty();
+            let mut v = vector::empty();
             vector::push_back(&mut v, 3153600000);
             vector::push_back(&mut v, 3153600000 * 2);
             v
@@ -1211,19 +1208,19 @@ module suilend::obligation {
     #[test_only]
     fun usdt_reserve<P>(scenario: &mut Scenario): Reserve<P> {
         let config = default_reserve_config();
-        let builder = reserve_config::from(&config, test_scenario::ctx(scenario));
+        let mut builder = reserve_config::from(&config, test_scenario::ctx(scenario));
         reserve_config::set_open_ltv_pct(&mut builder, 50);
         reserve_config::set_close_ltv_pct(&mut builder, 80);
         reserve_config::set_max_close_ltv_pct(&mut builder, 80);
         reserve_config::set_borrow_weight_bps(&mut builder, 20_000);
         reserve_config::set_interest_rate_utils(&mut builder, {
-            let v = vector::empty();
+            let mut v = vector::empty();
             vector::push_back(&mut v, 0);
             vector::push_back(&mut v, 100);
             v
         });
         reserve_config::set_interest_rate_aprs(&mut builder, {
-            let v = vector::empty();
+            let mut v = vector::empty();
             vector::push_back(&mut v, 3153600000);
             vector::push_back(&mut v, 3153600000 * 2);
 
@@ -1251,19 +1248,19 @@ module suilend::obligation {
     #[test_only]
     fun eth_reserve<P>(scenario: &mut Scenario): Reserve<P> {
         let config = default_reserve_config();
-        let builder = reserve_config::from(&config, test_scenario::ctx(scenario));
+        let mut builder = reserve_config::from(&config, test_scenario::ctx(scenario));
         reserve_config::set_open_ltv_pct(&mut builder, 10);
         reserve_config::set_close_ltv_pct(&mut builder, 20);
         reserve_config::set_max_close_ltv_pct(&mut builder, 20);
         reserve_config::set_borrow_weight_bps(&mut builder, 30_000);
         reserve_config::set_interest_rate_utils(&mut builder, {
-            let v = vector::empty();
+            let mut v = vector::empty();
             vector::push_back(&mut v, 0);
             vector::push_back(&mut v, 100);
             v
         });
         reserve_config::set_interest_rate_aprs(&mut builder, {
-            let v = vector::empty();
+            let mut v = vector::empty();
             vector::push_back(&mut v, 3153600000 * 10);
             vector::push_back(&mut v, 3153600000 * 20);
 
@@ -1291,19 +1288,19 @@ module suilend::obligation {
     #[test_only]
     fun ausd_reserve<P>(scenario: &mut Scenario): Reserve<P> {
         let config = default_reserve_config();
-        let builder = reserve_config::from(&config, test_scenario::ctx(scenario));
+        let mut builder = reserve_config::from(&config, test_scenario::ctx(scenario));
         reserve_config::set_open_ltv_pct(&mut builder, 50);
         reserve_config::set_close_ltv_pct(&mut builder, 80);
         reserve_config::set_max_close_ltv_pct(&mut builder, 80);
         reserve_config::set_borrow_weight_bps(&mut builder, 20_000);
         reserve_config::set_interest_rate_utils(&mut builder, {
-            let v = vector::empty();
+            let mut v = vector::empty();
             vector::push_back(&mut v, 0);
             vector::push_back(&mut v, 100);
             v
         });
         reserve_config::set_interest_rate_aprs(&mut builder, {
-            let v = vector::empty();
+            let mut v = vector::empty();
             vector::push_back(&mut v, 3153600000);
             vector::push_back(&mut v, 3153600000 * 2);
 
@@ -1330,7 +1327,7 @@ module suilend::obligation {
 
     #[test_only]
     fun reserves<P>(scenario: &mut Scenario): vector<Reserve<P>> {
-        let v = vector::empty();
+        let mut v = vector::empty();
         vector::push_back(&mut v, sui_reserve(scenario));
         vector::push_back(&mut v,  usdc_reserve(scenario));
         vector::push_back(&mut v,  usdt_reserve(scenario));
@@ -1342,7 +1339,7 @@ module suilend::obligation {
 
     #[test_only]
     fun get_reserve_array_index<P, T>(reserves: &vector<Reserve<P>>): u64 {
-        let i = 0;
+        let mut i = 0;
         while (i < vector::length(reserves)) {
             let reserve = vector::borrow(reserves, i);
             if (type_name::get<T>() == reserve::coin_type(reserve)) {
@@ -1375,15 +1372,15 @@ module suilend::obligation {
         use sui::test_utils::{Self};
 
         let owner = @0x26;
-        let scenario = test_scenario::begin(owner);
+        let mut scenario = test_scenario::begin(owner);
 
         let clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
         let lending_market_id = object::new(test_scenario::ctx(&mut scenario));
 
-        let usdc_reserve = usdc_reserve(&mut scenario);
-        let sui_reserve = sui_reserve(&mut scenario);
+        let mut usdc_reserve = usdc_reserve(&mut scenario);
+        let mut sui_reserve = sui_reserve(&mut scenario);
 
-        let obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
+        let mut obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
 
         reserve::update_price_for_testing(
             &mut usdc_reserve, 
@@ -1439,13 +1436,13 @@ module suilend::obligation {
         use sui::test_scenario::{Self};
 
         let owner = @0x26;
-        let scenario = test_scenario::begin(owner);
+        let mut scenario = test_scenario::begin(owner);
         let clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
         let lending_market_id = object::new(test_scenario::ctx(&mut scenario));
-        let usdc_reserve = usdc_reserve(&mut scenario);
-        let sui_reserve = sui_reserve(&mut scenario);
+        let mut usdc_reserve = usdc_reserve(&mut scenario);
+        let mut sui_reserve = sui_reserve(&mut scenario);
 
-        let obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
+        let mut obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
 
         deposit<TEST_MARKET>(&mut obligation, &mut sui_reserve, &clock, 100 * 1_000_000_000);
         borrow<TEST_MARKET>(&mut obligation, &mut usdc_reserve, &clock, 200 * 1_000_000 + 1);
@@ -1464,13 +1461,13 @@ module suilend::obligation {
         use sui::test_scenario::{Self};
 
         let owner = @0x26;
-        let scenario = test_scenario::begin(owner);
+        let mut scenario = test_scenario::begin(owner);
         let clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
         let lending_market_id = object::new(test_scenario::ctx(&mut scenario));
-        let usdc_reserve = usdc_reserve(&mut scenario);
-        let sui_reserve = sui_reserve(&mut scenario);
+        let mut usdc_reserve = usdc_reserve(&mut scenario);
+        let mut sui_reserve = sui_reserve(&mut scenario);
 
-        let obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
+        let mut obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
 
         deposit<TEST_MARKET>(&mut obligation, &mut sui_reserve, &clock, 100 * 1_000_000_000);
         borrow<TEST_MARKET>(&mut obligation, &mut usdc_reserve, &clock, 1);
@@ -1490,12 +1487,12 @@ module suilend::obligation {
         use sui::test_scenario::{Self};
 
         let owner = @0x26;
-        let scenario = test_scenario::begin(owner);
+        let mut scenario = test_scenario::begin(owner);
         let clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
         let lending_market_id = object::new(test_scenario::ctx(&mut scenario));
-        let sui_reserve = sui_reserve(&mut scenario);
+        let mut sui_reserve = sui_reserve(&mut scenario);
 
-        let obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
+        let mut obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
 
         deposit<TEST_MARKET>(&mut obligation, &mut sui_reserve, &clock, 100 * 1_000_000_000);
         borrow<TEST_MARKET>(&mut obligation, &mut sui_reserve, &clock, 1);
@@ -1512,11 +1509,11 @@ module suilend::obligation {
         use sui::test_scenario::{Self};
 
         let owner = @0x26;
-        let scenario = test_scenario::begin(owner);
+        let mut scenario = test_scenario::begin(owner);
         let lending_market_id = object::new(test_scenario::ctx(&mut scenario));
 
-        let reserves = reserves<TEST_MARKET>(&mut scenario);
-        let obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
+        let mut reserves = reserves<TEST_MARKET>(&mut scenario);
+        let mut obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
         let clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
 
         deposit<TEST_MARKET>(
@@ -1527,7 +1524,7 @@ module suilend::obligation {
         );
 
         let config = {
-            let builder = reserve_config::from(
+            let mut builder = reserve_config::from(
                 config(get_reserve<TEST_MARKET, TEST_USDC>(&reserves)),
                 test_scenario::ctx(&mut scenario)
             );
@@ -1572,11 +1569,11 @@ module suilend::obligation {
         use sui::test_scenario::{Self};
 
         let owner = @0x26;
-        let scenario = test_scenario::begin(owner);
+        let mut scenario = test_scenario::begin(owner);
 
         let lending_market_id = object::new(test_scenario::ctx(&mut scenario));
-        let reserves = reserves<TEST_MARKET>(&mut scenario);
-        let obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
+        let mut reserves = reserves<TEST_MARKET>(&mut scenario);
+        let mut obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
         let clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
 
         deposit<TEST_MARKET>(
@@ -1587,7 +1584,7 @@ module suilend::obligation {
         );
 
         let config = {
-            let builder = reserve_config::from(
+            let mut builder = reserve_config::from(
                 config(get_reserve<TEST_MARKET, TEST_USDC>(&reserves)),
                 test_scenario::ctx(&mut scenario)
             );
@@ -1632,11 +1629,11 @@ module suilend::obligation {
         use sui::test_scenario::{Self};
 
         let owner = @0x26;
-        let scenario = test_scenario::begin(owner);
+        let mut scenario = test_scenario::begin(owner);
         let lending_market_id = object::new(test_scenario::ctx(&mut scenario));
 
-        let reserves = reserves<TEST_MARKET>(&mut scenario);
-        let obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
+        let mut reserves = reserves<TEST_MARKET>(&mut scenario);
+        let mut obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
         let clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
 
         deposit<TEST_MARKET>(
@@ -1647,7 +1644,7 @@ module suilend::obligation {
         );
 
         let config = {
-            let builder = reserve_config::from(
+            let mut builder = reserve_config::from(
                 config(get_reserve<TEST_MARKET, TEST_USDC>(&reserves)),
                 test_scenario::ctx(&mut scenario)
             );
@@ -1691,13 +1688,13 @@ module suilend::obligation {
         use sui::test_scenario::{Self};
 
         let owner = @0x26;
-        let scenario = test_scenario::begin(owner);
+        let mut scenario = test_scenario::begin(owner);
         let lending_market_id = object::new(test_scenario::ctx(&mut scenario));
 
-        let usdc_reserve = usdc_reserve(&mut scenario);
-        let sui_reserve = sui_reserve(&mut scenario);
+        let mut usdc_reserve = usdc_reserve(&mut scenario);
+        let mut sui_reserve = sui_reserve(&mut scenario);
 
-        let obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
+        let mut obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
         let clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
 
         reserve::update_price_for_testing(
@@ -1731,13 +1728,13 @@ module suilend::obligation {
         use sui::test_scenario::{Self};
 
         let owner = @0x26;
-        let scenario = test_scenario::begin(owner);
+        let mut scenario = test_scenario::begin(owner);
         let lending_market_id = object::new(test_scenario::ctx(&mut scenario));
 
-        let usdc_reserve = usdc_reserve(&mut scenario);
-        let sui_reserve = sui_reserve(&mut scenario);
+        let mut usdc_reserve = usdc_reserve(&mut scenario);
+        let mut sui_reserve = sui_reserve(&mut scenario);
 
-        let obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
+        let mut obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
         let clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
 
         reserve::update_price_for_testing(
@@ -1797,14 +1794,14 @@ module suilend::obligation {
         use sui::test_scenario::{Self};
 
         let owner = @0x26;
-        let scenario = test_scenario::begin(owner);
+        let mut scenario = test_scenario::begin(owner);
         let lending_market_id = object::new(test_scenario::ctx(&mut scenario));
 
-        let usdc_reserve = usdc_reserve(&mut scenario);
-        let sui_reserve = sui_reserve(&mut scenario);
+        let mut usdc_reserve = usdc_reserve(&mut scenario);
+        let mut sui_reserve = sui_reserve(&mut scenario);
         let clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
 
-        let obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
+        let mut obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
 
         deposit<TEST_MARKET>(&mut obligation, &mut sui_reserve, &clock, 100 * 1_000_000_000);
         borrow<TEST_MARKET>(&mut obligation, &mut usdc_reserve, &clock, 50 * 1_000_000);
@@ -1825,14 +1822,14 @@ module suilend::obligation {
         use sui::test_scenario::{Self};
 
         let owner = @0x26;
-        let scenario = test_scenario::begin(owner);
+        let mut scenario = test_scenario::begin(owner);
         let lending_market_id = object::new(test_scenario::ctx(&mut scenario));
 
-        let usdc_reserve = usdc_reserve(&mut scenario);
-        let sui_reserve = sui_reserve(&mut scenario);
+        let mut usdc_reserve = usdc_reserve(&mut scenario);
+        let mut sui_reserve = sui_reserve(&mut scenario);
         let clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
 
-        let obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
+        let mut obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
 
         deposit<TEST_MARKET>(&mut obligation, &mut sui_reserve, &clock, 100 * 1_000_000_000);
         borrow<TEST_MARKET>(&mut obligation, &mut usdc_reserve, &clock, 50 * 1_000_000);
@@ -1852,14 +1849,14 @@ module suilend::obligation {
         use sui::test_scenario::{Self};
 
         let owner = @0x26;
-        let scenario = test_scenario::begin(owner);
+        let mut scenario = test_scenario::begin(owner);
         let lending_market_id = object::new(test_scenario::ctx(&mut scenario));
 
-        let usdc_reserve = usdc_reserve(&mut scenario);
-        let usdt_reserve = usdt_reserve(&mut scenario);
-        let sui_reserve = sui_reserve(&mut scenario);
+        let mut usdc_reserve = usdc_reserve(&mut scenario);
+        let mut usdt_reserve = usdt_reserve(&mut scenario);
+        let mut sui_reserve = sui_reserve(&mut scenario);
 
-        let obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
+        let mut obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
         let clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
 
         reserve::update_price_for_testing(
@@ -1915,13 +1912,13 @@ module suilend::obligation {
         use sui::test_scenario::{Self};
 
         let owner = @0x26;
-        let scenario = test_scenario::begin(owner);
+        let mut scenario = test_scenario::begin(owner);
         let lending_market_id = object::new(test_scenario::ctx(&mut scenario));
 
-        let usdc_reserve = usdc_reserve(&mut scenario);
-        let sui_reserve = sui_reserve(&mut scenario);
+        let mut usdc_reserve = usdc_reserve(&mut scenario);
+        let mut sui_reserve = sui_reserve(&mut scenario);
 
-        let obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
+        let mut obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
         let clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
 
         reserve::update_price_for_testing(
@@ -1981,15 +1978,15 @@ module suilend::obligation {
         use sui::clock::{Self};
 
         let owner = @0x26;
-        let scenario = test_scenario::begin(owner);
+        let mut scenario = test_scenario::begin(owner);
         let lending_market_id = object::new(test_scenario::ctx(&mut scenario));
-        let clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
+        let mut clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
         clock::set_for_testing(&mut clock, 0); 
 
-        let usdc_reserve = usdc_reserve(&mut scenario);
-        let sui_reserve = sui_reserve(&mut scenario);
+        let mut usdc_reserve = usdc_reserve(&mut scenario);
+        let mut sui_reserve = sui_reserve(&mut scenario);
 
-        let obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
+        let mut obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
 
         reserve::update_price_for_testing(
             &mut usdc_reserve, 
@@ -2060,15 +2057,15 @@ module suilend::obligation {
         use sui::clock::{Self};
 
         let owner = @0x26;
-        let scenario = test_scenario::begin(owner);
+        let mut scenario = test_scenario::begin(owner);
         let lending_market_id = object::new(test_scenario::ctx(&mut scenario));
-        let clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
+        let mut clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
         clock::set_for_testing(&mut clock, 0); 
 
-        let usdc_reserve = usdc_reserve(&mut scenario);
-        let sui_reserve = sui_reserve(&mut scenario);
+        let mut usdc_reserve = usdc_reserve(&mut scenario);
+        let mut sui_reserve = sui_reserve(&mut scenario);
 
-        let obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
+        let mut obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
 
         deposit<TEST_MARKET>(&mut obligation, &mut sui_reserve, &clock, 100 * 1_000_000_000);
         borrow<TEST_MARKET>(&mut obligation, &mut usdc_reserve, &clock, 100 * 1_000_000);
@@ -2120,15 +2117,15 @@ module suilend::obligation {
         use sui::clock::{Self};
 
         let owner = @0x26;
-        let scenario = test_scenario::begin(owner);
+        let mut scenario = test_scenario::begin(owner);
         let lending_market_id = object::new(test_scenario::ctx(&mut scenario));
-        let clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
+        let mut clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
         clock::set_for_testing(&mut clock, 0); 
 
-        let usdc_reserve = usdc_reserve(&mut scenario);
-        let sui_reserve = sui_reserve(&mut scenario);
+        let mut usdc_reserve = usdc_reserve(&mut scenario);
+        let mut sui_reserve = sui_reserve(&mut scenario);
 
-        let obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
+        let mut obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
 
         deposit<TEST_MARKET>(&mut obligation, &mut sui_reserve, &clock, 100 * 1_000_000_000);
         borrow<TEST_MARKET>(&mut obligation, &mut usdc_reserve, &clock, 100 * 1_000_000);
@@ -2163,15 +2160,15 @@ module suilend::obligation {
         use sui::clock::{Self};
 
         let owner = @0x26;
-        let scenario = test_scenario::begin(owner);
+        let mut scenario = test_scenario::begin(owner);
         let lending_market_id = object::new(test_scenario::ctx(&mut scenario));
-        let clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
+        let mut clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
         clock::set_for_testing(&mut clock, 0); 
 
-        let usdc_reserve = usdc_reserve(&mut scenario);
-        let sui_reserve = sui_reserve(&mut scenario);
+        let mut usdc_reserve = usdc_reserve(&mut scenario);
+        let mut sui_reserve = sui_reserve(&mut scenario);
 
-        let obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
+        let mut obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
 
         deposit<TEST_MARKET>(&mut obligation, &mut sui_reserve, &clock, 100 * 1_000_000_000);
         borrow<TEST_MARKET>(&mut obligation, &mut usdc_reserve, &clock, 100 * 1_000_000);
@@ -2222,13 +2219,13 @@ module suilend::obligation {
         use sui::test_utils::{Self};
 
         let owner = @0x26;
-        let scenario = test_scenario::begin(owner);
+        let mut scenario = test_scenario::begin(owner);
         let lending_market_id = object::new(test_scenario::ctx(&mut scenario));
-        let clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
+        let mut clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
         clock::set_for_testing(&mut clock, 0); 
 
-        let reserves = reserves<TEST_MARKET>(&mut scenario);
-        let obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
+        let mut reserves = reserves<TEST_MARKET>(&mut scenario);
+        let mut obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
 
         deposit<TEST_MARKET>(
             &mut obligation, 
@@ -2260,13 +2257,13 @@ module suilend::obligation {
         use sui::test_utils::{Self};
 
         let owner = @0x26;
-        let scenario = test_scenario::begin(owner);
+        let mut scenario = test_scenario::begin(owner);
         let lending_market_id = object::new(test_scenario::ctx(&mut scenario));
-        let clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
+        let mut clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
         clock::set_for_testing(&mut clock, 0); 
 
-        let reserves = reserves<TEST_MARKET>(&mut scenario);
-        let obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
+        let mut reserves = reserves<TEST_MARKET>(&mut scenario);
+        let mut obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
 
         deposit<TEST_MARKET>(
             &mut obligation, 
@@ -2309,13 +2306,13 @@ module suilend::obligation {
         use sui::test_utils::{Self};
 
         let owner = @0x26;
-        let scenario = test_scenario::begin(owner);
+        let mut scenario = test_scenario::begin(owner);
         let lending_market_id = object::new(test_scenario::ctx(&mut scenario));
-        let clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
+        let mut clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
         clock::set_for_testing(&mut clock, 0); 
 
-        let reserves = reserves<TEST_MARKET>(&mut scenario);
-        let obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
+        let mut reserves = reserves<TEST_MARKET>(&mut scenario);
+        let mut obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
 
         deposit<TEST_MARKET>(
             &mut obligation, 
@@ -2401,13 +2398,13 @@ module suilend::obligation {
         use sui::test_utils::{Self};
 
         let owner = @0x26;
-        let scenario = test_scenario::begin(owner);
+        let mut scenario = test_scenario::begin(owner);
         let lending_market_id = object::new(test_scenario::ctx(&mut scenario));
-        let clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
+        let mut clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
         clock::set_for_testing(&mut clock, 0); 
 
-        let reserves = reserves<TEST_MARKET>(&mut scenario);
-        let obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
+        let mut reserves = reserves<TEST_MARKET>(&mut scenario);
+        let mut obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
 
         deposit<TEST_MARKET>(
             &mut obligation, 
@@ -2450,13 +2447,13 @@ module suilend::obligation {
         use sui::test_utils::{Self};
 
         let owner = @0x26;
-        let scenario = test_scenario::begin(owner);
+        let mut scenario = test_scenario::begin(owner);
         let lending_market_id = object::new(test_scenario::ctx(&mut scenario));
-        let clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
+        let mut clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
         clock::set_for_testing(&mut clock, 0); 
 
-        let reserves = reserves<TEST_MARKET>(&mut scenario);
-        let obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
+        let mut reserves = reserves<TEST_MARKET>(&mut scenario);
+        let mut obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
 
         deposit<TEST_MARKET>(
             &mut obligation, 
@@ -2478,7 +2475,7 @@ module suilend::obligation {
         );
 
         let config = {
-            let builder = reserve_config::from(
+            let mut builder = reserve_config::from(
                 reserve::config(get_reserve<TEST_MARKET, TEST_SUI>(&reserves)), 
                 test_scenario::ctx(&mut scenario)
             );
@@ -2555,13 +2552,13 @@ module suilend::obligation {
         use sui::test_utils::{Self};
 
         let owner = @0x26;
-        let scenario = test_scenario::begin(owner);
+        let mut scenario = test_scenario::begin(owner);
         let lending_market_id = object::new(test_scenario::ctx(&mut scenario));
-        let clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
+        let mut clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
         clock::set_for_testing(&mut clock, 0); 
 
-        let reserves = reserves<TEST_MARKET>(&mut scenario);
-        let obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
+        let mut reserves = reserves<TEST_MARKET>(&mut scenario);
+        let mut obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
 
         deposit<TEST_MARKET>(
             &mut obligation, 
@@ -2584,7 +2581,7 @@ module suilend::obligation {
 
         let eth_reserve = get_reserve_mut<TEST_MARKET, TEST_ETH>(&mut reserves);
         let config = {
-            let builder = reserve_config::from(
+            let mut builder = reserve_config::from(
                 reserve::config(eth_reserve),
                 test_scenario::ctx(&mut scenario)
             );
@@ -2598,7 +2595,7 @@ module suilend::obligation {
 
         let sui_reserve = get_reserve_mut<TEST_MARKET, TEST_SUI>(&mut reserves);
         let config = {
-            let builder = reserve_config::from(
+            let mut builder = reserve_config::from(
                 reserve::config(sui_reserve),
                 test_scenario::ctx(&mut scenario)
             );
@@ -2673,13 +2670,13 @@ module suilend::obligation {
         use sui::test_utils::{Self};
 
         let owner = @0x26;
-        let scenario = test_scenario::begin(owner);
+        let mut scenario = test_scenario::begin(owner);
         let lending_market_id = object::new(test_scenario::ctx(&mut scenario));
-        let clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
+        let mut clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
         clock::set_for_testing(&mut clock, 0); 
 
-        let reserves = reserves<TEST_MARKET>(&mut scenario);
-        let obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
+        let mut reserves = reserves<TEST_MARKET>(&mut scenario);
+        let mut obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
 
         deposit<TEST_MARKET>(
             &mut obligation, 
@@ -2695,7 +2692,7 @@ module suilend::obligation {
         );
 
         let config = {
-            let builder = reserve_config::from(
+            let mut builder = reserve_config::from(
                 reserve::config(get_reserve<TEST_MARKET, TEST_SUI>(&reserves)), 
                 test_scenario::ctx(&mut scenario)
             );
@@ -2765,13 +2762,13 @@ module suilend::obligation {
         use sui::test_utils::{Self};
 
         let owner = @0x26;
-        let scenario = test_scenario::begin(owner);
+        let mut scenario = test_scenario::begin(owner);
         let lending_market_id = object::new(test_scenario::ctx(&mut scenario));
-        let clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
+        let mut clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
         clock::set_for_testing(&mut clock, 0); 
 
-        let reserves = reserves<TEST_MARKET>(&mut scenario);
-        let obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
+        let mut reserves = reserves<TEST_MARKET>(&mut scenario);
+        let mut obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
 
         deposit<TEST_MARKET>(
             &mut obligation, 
@@ -2794,7 +2791,7 @@ module suilend::obligation {
 
         let usdc_reserve = get_reserve_mut<TEST_MARKET, TEST_USDC>(&mut reserves);
         let config = {
-            let builder = reserve_config::from(
+            let mut builder = reserve_config::from(
                 reserve::config(usdc_reserve),
                 test_scenario::ctx(&mut scenario)
             );
@@ -2811,7 +2808,7 @@ module suilend::obligation {
 
         let sui_reserve = get_reserve_mut<TEST_MARKET, TEST_SUI>(&mut reserves);
         let config = {
-            let builder = reserve_config::from(
+            let mut builder = reserve_config::from(
                 reserve::config(sui_reserve),
                 test_scenario::ctx(&mut scenario)
             );
@@ -2888,13 +2885,13 @@ module suilend::obligation {
         use sui::test_utils::{Self};
 
         let owner = @0x26;
-        let scenario = test_scenario::begin(owner);
+        let mut scenario = test_scenario::begin(owner);
         let lending_market_id = object::new(test_scenario::ctx(&mut scenario));
-        let clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
+        let mut clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
         clock::set_for_testing(&mut clock, 0); 
 
-        let reserves = reserves<TEST_MARKET>(&mut scenario);
-        let obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
+        let mut reserves = reserves<TEST_MARKET>(&mut scenario);
+        let mut obligation = create_obligation<TEST_MARKET>(object::uid_to_inner(&lending_market_id), test_scenario::ctx(&mut scenario));
 
         deposit<TEST_MARKET>(
             &mut obligation, 
@@ -2930,13 +2927,13 @@ module suilend::obligation {
         use sui::test_utils::{Self};
 
         let owner = @0x26;
-        let scenario = test_scenario::begin(owner);
+        let mut scenario = test_scenario::begin(owner);
         let lending_market_id = object::new(test_scenario::ctx(&mut scenario));
-        let clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
+        let mut clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
         clock::set_for_testing(&mut clock, 0); 
 
-        let reserves = reserves<TEST_MARKET>(&mut scenario);
-        let obligation = create_obligation<TEST_MARKET>(
+        let mut reserves = reserves<TEST_MARKET>(&mut scenario);
+        let mut obligation = create_obligation<TEST_MARKET>(
             object::uid_to_inner(&lending_market_id), 
             test_scenario::ctx(&mut scenario)
         );
@@ -3000,16 +2997,16 @@ module suilend::obligation {
         use sui::test_utils::{Self};
 
         let owner = @0x26;
-        let scenario = test_scenario::begin(owner);
+        let mut scenario = test_scenario::begin(owner);
         let lending_market_id = object::new(test_scenario::ctx(&mut scenario));
-        let clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
+        let mut clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
         clock::set_for_testing(&mut clock, 0); 
 
-        let reserves = reserves<TEST_MARKET>(&mut scenario);
+        let mut reserves = reserves<TEST_MARKET>(&mut scenario);
 
         // Check USDC
         {
-            let obligation = create_obligation<TEST_MARKET>(
+            let mut obligation = create_obligation<TEST_MARKET>(
             object::uid_to_inner(&lending_market_id), 
             test_scenario::ctx(&mut scenario)
             );
@@ -3089,7 +3086,7 @@ module suilend::obligation {
 
         // Check USDT
         {
-            let obligation = create_obligation<TEST_MARKET>(
+            let mut obligation = create_obligation<TEST_MARKET>(
                 object::uid_to_inner(&lending_market_id), 
                 test_scenario::ctx(&mut scenario)
             );
@@ -3169,7 +3166,7 @@ module suilend::obligation {
 
         // Check AUSD
         {
-            let obligation = create_obligation<TEST_MARKET>(
+            let mut obligation = create_obligation<TEST_MARKET>(
                 object::uid_to_inner(&lending_market_id), 
                 test_scenario::ctx(&mut scenario)
             );
@@ -3249,7 +3246,7 @@ module suilend::obligation {
         
         // Check SUI
         {
-            let obligation = create_obligation<TEST_MARKET>(
+            let mut obligation = create_obligation<TEST_MARKET>(
                 object::uid_to_inner(&lending_market_id), 
                 test_scenario::ctx(&mut scenario)
             );
@@ -3328,13 +3325,13 @@ module suilend::obligation {
         use sui::test_utils::{Self};
 
         let owner = @0x26;
-        let scenario = test_scenario::begin(owner);
+        let mut scenario = test_scenario::begin(owner);
         let lending_market_id = object::new(test_scenario::ctx(&mut scenario));
-        let clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
+        let mut clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
         clock::set_for_testing(&mut clock, 0); 
 
-        let reserves = reserves<TEST_MARKET>(&mut scenario);
-        let obligation = create_obligation<TEST_MARKET>(
+        let mut reserves = reserves<TEST_MARKET>(&mut scenario);
+        let mut obligation = create_obligation<TEST_MARKET>(
             object::uid_to_inner(&lending_market_id), 
             test_scenario::ctx(&mut scenario)
         );
@@ -3355,7 +3352,7 @@ module suilend::obligation {
         // 1. shouldn't do anything
         zero_out_rewards_if_looped(&mut obligation, &mut reserves, &clock);
 
-        let i = 0;
+        let mut i = 0;
         while (i < vector::length(&obligation.user_reward_managers)) {
             let user_reward_manager = vector::borrow(&obligation.user_reward_managers, i);
             assert!(liquidity_mining::shares(user_reward_manager) != 0, 0);
@@ -3372,7 +3369,7 @@ module suilend::obligation {
 
         zero_out_rewards_if_looped(&mut obligation, &mut reserves, &clock);
 
-        let i = 0;
+        let mut i = 0;
         while (i < vector::length(&obligation.user_reward_managers)) {
             let user_reward_manager = vector::borrow(&obligation.user_reward_managers, i);
             assert!(liquidity_mining::shares(user_reward_manager) == 0, 0);

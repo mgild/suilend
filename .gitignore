@@ -1,2 +1,3 @@
 contracts/suilend/build
 suilend-cli/node_modules
+contracts/oracle/build

@@ -9,9 +9,10 @@ module suilend::mock_pyth {
     use std::vector::{Self};
     use sui::object::{Self, UID};
     use sui::bag::{Self, Bag};
-    use sui::clock::{Clock, Self};
+    use sui::clock::{Clock, Self, create_for_testing};
 
-    struct PriceState has key {
+
+    public struct PriceState has key {
         id: UID,
         price_objs: Bag
     }
@@ -30,10 +31,10 @@ module suilend::mock_pyth {
     }
 
     public fun new_price_info_obj(idx: u8, ctx: &mut TxContext): PriceInfoObject {
-        let v = vector::empty<u8>();
+        let mut v = vector::empty<u8>();
         vector::push_back(&mut v, idx);
 
-        let i = 1;
+        let mut i = 1;
         while (i < 32) {
             vector::push_back(&mut v, 0);
             i = i + 1;
