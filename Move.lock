@@ -5,7 +5,6 @@ version = 3
 manifest_digest = "299C528AE40C90988AEFDCD4CE6592954C94F04CB5F7C7632FA0A91E21E0275B"
 deps_digest = "3C4103934B1E040BB6B23F1D610B4EF9F2F1166A50A104EADCF77467C004C600"
 dependencies = [
-  { id = "Oracle", name = "Oracle" },
   { id = "Pyth", name = "Pyth" },
   { id = "Sui", name = "Sui" },
 ]
@@ -13,14 +12,6 @@ dependencies = [
 [[move.package]]
 id = "MoveStdlib"
 source = { git = "https://github.com/MystenLabs/sui.git", rev = "framework/mainnet", subdir = "crates/sui-framework/packages/move-stdlib" }
-
-[[move.package]]
-id = "Oracle"
-source = { local = "../oracle" }
-
-dependencies = [
-  { id = "Sui", name = "Sui" },
-]
 
 [[move.package]]
 id = "Pyth"

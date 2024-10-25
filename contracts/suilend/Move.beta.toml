@@ -15,6 +15,8 @@ git = "https://github.com/solendprotocol/pyth-crosschain.git"
 subdir = "target_chains/sui/contracts"
 rev = "98e218c64bb75cf1350eb7b021e1ffcc3aedfd62"
 
+Oracle = { local="../oracle" }
+
 [addresses]
 sui = "0x2"
 suilend = "0xba79417dd36e8fa1510f53b0491b7a8b2802217a81b1401b1efbb65e4994e016"
