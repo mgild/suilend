@@ -3264,6 +3264,7 @@ module suilend::obligation {
             borrow_idx,
             40, // 20
             80, // 50
+            test_scenario::ctx(&mut scenario)
         );
 
         set_emode(&mut obligation, &mut reserves, &clock);
@@ -3341,6 +3342,7 @@ module suilend::obligation {
             borrow_idx,
             40,
             60,
+            test_scenario::ctx(&mut scenario)
         );
 
         set_emode(&mut obligation, &mut reserves, &clock);
@@ -3395,6 +3397,7 @@ module suilend::obligation {
             borrow_idx,
             40,
             60,
+            test_scenario::ctx(&mut scenario)
         );
 
         set_emode(&mut obligation, &mut reserves, &clock);
@@ -3444,6 +3447,7 @@ module suilend::obligation {
             usdc_index,
             40,
             60,
+            test_scenario::ctx(&mut scenario)
         );
 
         reserve::set_emode_for_pair(
@@ -3451,6 +3455,7 @@ module suilend::obligation {
             usdc_index,
             60,
             90,
+            test_scenario::ctx(&mut scenario)
         );
 
         set_emode(&mut obligation, &mut reserves, &clock);
@@ -3536,6 +3541,7 @@ module suilend::obligation {
             usdc_index,
             40,
             60,
+            test_scenario::ctx(&mut scenario)
         );
 
         set_emode(&mut obligation, &mut reserves, &clock);
@@ -3681,6 +3687,7 @@ module suilend::obligation {
             borrow_idx,
             40,
             60,
+            test_scenario::ctx(&mut scenario)
         );
 
         deposit<TEST_MARKET>(&mut obligation, get_reserve_mut<TEST_MARKET, TEST_SUI>(&mut reserves), &clock, 100 * 1_000_000_000);
@@ -3735,6 +3742,7 @@ module suilend::obligation {
             borrow_idx,
             20 - 1,
             80,
+            test_scenario::ctx(&mut scenario)
         );
 
         set_emode(&mut obligation, &mut reserves, &clock);
@@ -3785,6 +3793,7 @@ module suilend::obligation {
             borrow_idx,
             30,
             50 - 1,
+            test_scenario::ctx(&mut scenario)
         );
 
         set_emode(&mut obligation, &mut reserves, &clock);
@@ -3838,6 +3847,7 @@ module suilend::obligation {
             borrow_idx,
             20 - 1,
             80,
+            test_scenario::ctx(&mut scenario)
         );
 
         deposit<TEST_MARKET>(&mut obligation, get_reserve_mut<TEST_MARKET, TEST_SUI>(&mut reserves), &clock, 100 * 1_000_000_000);
@@ -3891,6 +3901,7 @@ module suilend::obligation {
             borrow_idx,
             30,
             50 - 1,
+            test_scenario::ctx(&mut scenario)
         );
 
         deposit<TEST_MARKET>(&mut obligation, get_reserve_mut<TEST_MARKET, TEST_SUI>(&mut reserves), &clock, 100 * 1_000_000_000);
@@ -3937,6 +3948,7 @@ module suilend::obligation {
             borrow_idx,
             40,
             60,
+            test_scenario::ctx(&mut scenario)
         );
 
         set_emode(&mut obligation, &mut reserves, &clock);
@@ -3986,6 +3998,7 @@ module suilend::obligation {
             borrow_idx,
             40,
             60,
+            test_scenario::ctx(&mut scenario)
         );
 
         set_emode(&mut obligation, &mut reserves, &clock);
@@ -4034,6 +4047,7 @@ module suilend::obligation {
             borrow_idx,
             40,
             60,
+            test_scenario::ctx(&mut scenario)
         );
 
         set_emode(&mut obligation, &mut reserves, &clock);

@@ -486,22 +486,6 @@ module suilend::reserve {
         reserve_config::destroy(old);
     }
 
-    public(friend) fun set_emode_for_pair<P>(
-        reserve: &mut Reserve<P>, 
-        reserve_array_index: u64,
-        open_ltv_pct: u8,
-        close_ltv_pct: u8,
-    ) {
-        let config = cell::get_mut(&mut reserve.config);
-
-        reserve_config::set_emode_for_pair(
-            config,
-            reserve_array_index,
-            open_ltv_pct,
-            close_ltv_pct,
-        );
-    }
-
     public(friend) fun update_price<P>(
         reserve: &mut Reserve<P>, 
         clock: &Clock,
@@ -1483,5 +1467,30 @@ module suilend::reserve {
         sui::test_utils::destroy(lending_market_id);
 
         reserve
+    }
+
+    #[test_only]
+    public fun set_emode_for_pair<P>(
+        reserve: &mut Reserve<P>, 
+        reserve_array_index: u64,
+        open_ltv_pct: u8,
+        close_ltv_pct: u8,
+        ctx: &mut TxContext,
+    ) {
+        let config = cell::get_mut(&mut reserve.config);
+
+        let builder = reserve_config::from(config, ctx);
+
+        let emode_data = reserve_config::create_emode_data(
+            reserve_array_index,
+            open_ltv_pct,
+            close_ltv_pct,
+        );
+
+        reserve_config::set_emode_ltv_for_borrow(&mut builder, emode_data);
+
+        reserve_config::destroy(
+            cell::set(&mut reserve.config, reserve_config::build(builder, ctx))
+        );
     }
 }

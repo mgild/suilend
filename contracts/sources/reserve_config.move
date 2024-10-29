@@ -95,6 +95,64 @@ module suilend::reserve_config {
         close_attributed_borrow_limit_usd: u64,
         ctx: &mut TxContext
     ): ReserveConfig {
+        create_reserve_config_(
+            open_ltv_pct,
+            close_ltv_pct,
+            max_close_ltv_pct,
+            borrow_weight_bps,
+            deposit_limit,
+            borrow_limit,
+            liquidation_bonus_bps,
+            max_liquidation_bonus_bps,
+            deposit_limit_usd,
+            borrow_limit_usd,
+            borrow_fee_bps,
+            spread_fee_bps,
+            protocol_liquidation_fee_bps,
+            interest_rate_utils,
+            interest_rate_aprs,
+            isolated,
+            open_attributed_borrow_limit_usd,
+            close_attributed_borrow_limit_usd,
+            option::none(),
+            ctx,
+        )
+    }
+
+    public fun create_emode_data(
+        reserve_array_index: u64,
+        open_ltv_pct: u8,
+        close_ltv_pct: u8,
+    ): EModeData {
+        EModeData {
+            reserve_array_index,
+            open_ltv_pct,
+            close_ltv_pct,
+        }
+    }
+    
+    fun create_reserve_config_(
+        open_ltv_pct: u8, 
+        close_ltv_pct: u8, 
+        max_close_ltv_pct: u8,
+        borrow_weight_bps: u64, 
+        deposit_limit: u64, 
+        borrow_limit: u64, 
+        liquidation_bonus_bps: u64,
+        max_liquidation_bonus_bps: u64,
+        deposit_limit_usd: u64,
+        borrow_limit_usd: u64,
+        borrow_fee_bps: u64, 
+        spread_fee_bps: u64, 
+        protocol_liquidation_fee_bps: u64, 
+        interest_rate_utils: vector<u8>,
+        interest_rate_aprs: vector<u64>,
+        isolated: bool,
+        open_attributed_borrow_limit_usd: u64,
+        close_attributed_borrow_limit_usd: u64,
+        emode_config: Option<VecMap<u64, EModeData>>,
+        ctx: &mut TxContext
+    ): ReserveConfig {
         let config = ReserveConfig {
             open_ltv_pct,
             close_ltv_pct,
@@ -115,6 +173,14 @@ module suilend::reserve_config {
             open_attributed_borrow_limit_usd,
             close_attributed_borrow_limit_usd,
             additional_fields: bag::new(ctx)
+        };
+
+        if (option::is_some(&emode_config)) {
+            bag::add(
+                &mut config.additional_fields,
+                EModeKey {},
+                option::destroy_some(emode_config),
+            );
         };
 
         validate_reserve_config(&config);
@@ -149,6 +215,7 @@ module suilend::reserve_config {
         );
 
         validate_utils_and_aprs(&config.interest_rate_utils, &config.interest_rate_aprs);
+        validate_emode_ltvs(config);
     }
 
     fun validate_utils_and_aprs(utils: &vector<u8>, aprs: &vector<u64>) {
@@ -172,6 +239,21 @@ module suilend::reserve_config {
 
             i = i + 1;
         }
+    }
+    
+    fun validate_emode_ltvs(config: &ReserveConfig) {
+        if (bag::contains(&config.additional_fields, EModeKey {})) {
+            let emode_ltvs: &VecMap<u64, EModeData> = bag::borrow(&config.additional_fields, EModeKey {});
+
+            let keys = vec_map::keys(emode_ltvs);
+
+            while (vector::length(&keys) > 0) {
+                let emode = vec_map::get(emode_ltvs, &vector::pop_back(&mut keys));
+
+                assert!(config.open_ltv_pct < emode.open_ltv_pct, ENormalOpenLtvBetterThanEModeLtvs);
+                assert!(config.close_ltv_pct < emode.close_ltv_pct, ENormalCloseLtvBetterThanEModeLtvs);
+            };
+        };
     }
 
     public fun open_ltv(config: &ReserveConfig): Decimal {
@@ -319,6 +401,10 @@ module suilend::reserve_config {
         set_open_attributed_borrow_limit_usd(&mut builder, config.open_attributed_borrow_limit_usd);
         set_close_attributed_borrow_limit_usd(&mut builder, config.close_attributed_borrow_limit_usd);
 
+        if (bag::contains(&config.additional_fields, EModeKey {})) {
+            set_emode_ltv_for_borrow(&mut builder, *bag::borrow(&config.additional_fields, EModeKey {}))
+        };
+
         builder
     }
     
@@ -403,8 +489,35 @@ module suilend::reserve_config {
         set(builder, b"close_attributed_borrow_limit_usd", close_attributed_borrow_limit_usd);
     }
 
+    public fun set_emode_ltv_for_borrow(
+        builder : &mut ReserveConfigBuilder,
+        emode_data: EModeData
+    ) {
+        if (bag::contains(&builder.fields, b"emode")) {
+            let emode_config: &mut VecMap<u64, EModeData> = bag::borrow_mut(&mut builder.fields, b"emode");
+            if (vec_map::contains(emode_config, &emode_data.reserve_array_index)) {
+                let data: &mut EModeData = bag::borrow_mut(&mut builder.fields, emode_data.reserve_array_index);
+                *data = emode_data;
+            } else {
+                vec_map::insert(emode_config, emode_data.reserve_array_index, emode_data)
+            };
+        } else {
+            let emode_config: VecMap<u64, EModeData> = vec_map::empty();
+            vec_map::insert(&mut emode_config, emode_data.reserve_array_index, emode_data);
+
+            bag::add(&mut builder.fields, b"emode", emode_config);
+        }
+    }
+
     public fun build(builder: ReserveConfigBuilder, tx_context: &mut TxContext): ReserveConfig {
-        let config = create_reserve_config(
+
+        let emode_config = if (bag::contains(&builder.fields, b"emode")) {
+            option::some(bag::remove(&mut builder.fields, b"emode"))
+        } else {
+            option::none()
+        };
+
+        let config = create_reserve_config_(
             bag::remove(&mut builder.fields, b"open_ltv_pct"),
             bag::remove(&mut builder.fields, b"close_ltv_pct"),
             bag::remove(&mut builder.fields, b"max_close_ltv_pct"),
@@ -423,6 +536,7 @@ module suilend::reserve_config {
             bag::remove(&mut builder.fields, b"isolated"),
             bag::remove(&mut builder.fields, b"open_attributed_borrow_limit_usd"),
             bag::remove(&mut builder.fields, b"close_attributed_borrow_limit_usd"),
+            emode_config,
             tx_context
         );
 
@@ -434,43 +548,7 @@ module suilend::reserve_config {
 
     // === eMode Package Functions ==
 
-    public(friend) fun set_emode_for_pair(
-        reserve_config: &mut ReserveConfig,
-        reserve_array_index: u64,
-        open_ltv_pct: u8,
-        close_ltv_pct: u8,
-    ) {
-        assert!(reserve_config.open_ltv_pct < open_ltv_pct, ENormalOpenLtvBetterThanEModeLtvs);
-        assert!(reserve_config.close_ltv_pct < close_ltv_pct, ENormalCloseLtvBetterThanEModeLtvs);
-
-        if (!has_emode_config(reserve_config)) {
-            bag::add(
-                &mut reserve_config.additional_fields,
-                EModeKey {},
-                vec_map::empty<u64, EModeData>(),
-            )
-        };
-
-        let emode_config: &mut VecMap<u64, EModeData> = bag::borrow_mut(&mut reserve_config.additional_fields, EModeKey {});
-
-        // Check if there is already emode parameters for the reserve_array_index
-        let has_pair = vec_map::contains(emode_config, &reserve_array_index);
-
-        if (!has_pair) {
-            vec_map::insert(emode_config, reserve_array_index, EModeData {
-                reserve_array_index,
-                open_ltv_pct,
-                close_ltv_pct,
-            });
-        } else {
-            let emode_data = vec_map::get_mut(emode_config, &reserve_array_index);
-
-            emode_data.open_ltv_pct = open_ltv_pct;
-            emode_data.close_ltv_pct = close_ltv_pct;
-        };
-    }
-
-    public(friend) fun check_emode_validity(
+    public(friend) fun check_has_emode_pair(
         reserve_config: &ReserveConfig,
         reserve_array_index: &u64,
     ): bool {
@@ -713,7 +791,15 @@ module suilend::reserve_config {
         vector::push_back(&mut aprs, 0);
         vector::push_back(&mut aprs, 100);
 
-        let config = create_reserve_config(
+        let emode_ltvs = create_emode_data(
+            1,
+            60,
+            80,
+        );
+        let emode_config = vec_map::empty();
+        vec_map::insert(&mut emode_config, 1, emode_ltvs);
+
+        let config = create_reserve_config_(
             10,
             10,
             10,
@@ -732,17 +818,11 @@ module suilend::reserve_config {
             false,
             0,
             0,
+            option::some(emode_config),
             test_scenario::ctx(&mut scenario)
         );
 
-        set_emode_for_pair(
-            &mut config,
-            1,
-            60,
-            80,
-        );
-
-        check_emode_validity(&config, &1);
+        check_has_emode_pair(&config, &1);
 
         assert!(has_emode_config(&config), 0);
         let emode_data = option::destroy_some(try_get_emode_data(&config, &1));
@@ -768,7 +848,15 @@ module suilend::reserve_config {
         vector::push_back(&mut aprs, 0);
         vector::push_back(&mut aprs, 100);
 
-        let config = create_reserve_config(
+        let emode_ltvs = create_emode_data(
+            1,
+            60,
+            80,
+        );
+        let emode_config = vec_map::empty();
+        vec_map::insert(&mut emode_config, 1, emode_ltvs);
+
+        let config = create_reserve_config_(
             10,
             10,
             10,
@@ -787,17 +875,11 @@ module suilend::reserve_config {
             false,
             0,
             0,
+            option::some(emode_config),
             test_scenario::ctx(&mut scenario)
         );
 
-        set_emode_for_pair(
-            &mut config,
-            1,
-            60,
-            80,
-        );
-
-        assert_eq(check_emode_validity(&config, &2), false);
+        assert_eq(check_has_emode_pair(&config, &2), false);
 
 
         destroy(config);
