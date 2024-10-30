@@ -2,6 +2,7 @@
 name = "suilend"
 version = "0.0.1"
 published-at = "0x157dbf1830dab58ec67e025c1200a32a22a31150beba4d3de8e39571547f8cc2"
+edition = "2024.beta"
 
 [dependencies.Sui]
 git = "https://github.com/MystenLabs/sui.git"
