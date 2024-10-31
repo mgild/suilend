@@ -32,12 +32,6 @@ module suilend::reserve {
     };
     use suilend::liquidity_mining::{Self, PoolRewardManager};
 
-    #[test_only]
-    use sui::test_scenario::{Self};
-
-    #[test_only]
-    use std::vector::{Self};
-
     // === Errors ===
     const EPriceStale: u64 = 0;
     const EPriceIdentifierMismatch: u64 = 1;
@@ -446,6 +440,38 @@ module suilend::reserve {
         ))
     }
 
+    public fun ctoken_supply<P>(reserve: &Reserve<P>): u64 {
+        reserve.ctoken_supply
+    }
+
+    public fun unclaimed_spread_fees<P>(reserve: &Reserve<P>): Decimal {
+        reserve.unclaimed_spread_fees
+    }
+
+    public fun balances<P, T>(reserve: &Reserve<P>): &Balances<P, T> {
+        dynamic_field::borrow(&reserve.id, BalanceKey {})
+    }
+
+    public use fun balances_available_amount as Balances.available_amount;
+    public fun balances_available_amount<P, T>(balances: &Balances<P, T>): &Balance<T> {
+        &balances.available_amount
+    }
+
+    public use fun balances_ctoken_supply as Balances.ctoken_supply;
+    public fun balances_ctoken_supply<P, T>(balances: &Balances<P, T>): &Supply<CToken<P, T>> {
+        &balances.ctoken_supply
+    }
+
+    public use fun balances_fees as Balances.fees;
+    public fun balances_fees<P, T>(balances: &Balances<P, T>): &Balance<T> {
+        &balances.fees
+    }
+
+    public use fun balances_ctoken_fees as Balances.ctoken_fees;
+    public fun balances_ctoken_fees<P, T>(balances: &Balances<P, T>): &Balance<CToken<P, T>> {
+        &balances.ctoken_fees
+    }
+
     // === Public-Mutative Functions
     public(package) fun deposits_pool_reward_manager_mut<P>(reserve: &mut Reserve<P>): &mut PoolRewardManager {
         &mut reserve.deposits_pool_reward_manager
@@ -814,6 +840,7 @@ module suilend::reserve {
 
     #[test]
     fun test_accessors() {
+        use sui::test_scenario::{Self};
         use suilend::test_usdc::{TEST_USDC};
         use suilend::reserve_config::{default_reserve_config};
 
@@ -935,480 +962,6 @@ module suilend::reserve {
         test_scenario::end(scenario);
     }
 
-    #[test_only]
-    public struct TEST_LM {}
-
-    #[test]
-    fun test_deposit_happy() {
-        use suilend::test_usdc::{TEST_USDC};
-        use sui::test_scenario::{Self};
-        use suilend::reserve_config::{default_reserve_config};
-
-        let owner = @0x26;
-        let mut scenario = test_scenario::begin(owner);
-
-        
-        let mut reserve = create_for_testing<TEST_LM, TEST_USDC>(
-            default_reserve_config(),
-            0,
-            6,
-            decimal::from(1),
-            0,
-            500,
-            200,
-            decimal::from(500),
-            decimal::from(1),
-            1,
-            test_scenario::ctx(&mut scenario)
-        );
-
-        let ctokens = deposit_liquidity_and_mint_ctokens<TEST_LM, TEST_USDC>(
-            &mut reserve, 
-            balance::create_for_testing(1000)
-        );
-
-        assert!(balance::value(&ctokens) == 200, 0);
-        assert!(reserve.available_amount == 1500, 0);
-        assert!(reserve.ctoken_supply == 400, 0);
-
-        let balances: &mut Balances<TEST_LM, TEST_USDC> = dynamic_field::borrow_mut(
-            &mut reserve.id, 
-            BalanceKey {}
-        );
-
-        assert!(balance::value(&balances.available_amount) == 1500, 0);
-        assert!(balance::supply_value(&balances.ctoken_supply) == 400, 0);
-
-        sui::test_utils::destroy(reserve);
-        sui::test_utils::destroy(ctokens);
-
-        test_scenario::end(scenario);
-    }
-
-    #[test]
-    #[expected_failure(abort_code = EDepositLimitExceeded)]
-    fun test_deposit_fail() {
-        use suilend::test_usdc::{TEST_USDC};
-        use sui::test_scenario::{Self};
-        use suilend::reserve_config::{default_reserve_config};
-
-        let owner = @0x26;
-        let mut scenario = test_scenario::begin(owner);
-
-        let mut reserve = create_for_testing<TEST_LM, TEST_USDC>(
-            {
-                let config = default_reserve_config();
-                let mut builder = reserve_config::from(&config, test_scenario::ctx(&mut scenario));
-                reserve_config::set_deposit_limit(&mut builder, 1000);
-                sui::test_utils::destroy(config);
-
-                reserve_config::build(builder, test_scenario::ctx(&mut scenario))
-            },
-            0,
-            6,
-            decimal::from(1),
-            0,
-            500,
-            200,
-            decimal::from(500),
-            decimal::from(1),
-            1,
-            test_scenario::ctx(&mut scenario)
-        );
-
-        let coins = balance::create_for_testing<TEST_USDC>(1);
-        let ctokens = deposit_liquidity_and_mint_ctokens(&mut reserve, coins);
-
-        sui::test_utils::destroy(reserve);
-        sui::test_utils::destroy(ctokens);
-        test_scenario::end(scenario);
-    }
-
-    #[test]
-    #[expected_failure(abort_code = EDepositLimitExceeded)]
-    fun test_deposit_fail_usd_limit() {
-        use suilend::test_usdc::{TEST_USDC};
-        use sui::test_scenario::{Self};
-        use suilend::reserve_config::{default_reserve_config};
-
-        let owner = @0x26;
-        let mut scenario = test_scenario::begin(owner);
-
-        let mut reserve = create_for_testing<TEST_LM, TEST_USDC>(
-            {
-                let config = default_reserve_config();
-                let mut builder = reserve_config::from(&config, test_scenario::ctx(&mut scenario));
-                reserve_config::set_deposit_limit(&mut builder, 18_446_744_073_709_551_615);
-                reserve_config::set_deposit_limit_usd(&mut builder, 1);
-                sui::test_utils::destroy(config);
-
-                reserve_config::build(builder, test_scenario::ctx(&mut scenario))
-            },
-            0,
-            6,
-            decimal::from(1),
-            0,
-            500_000,
-            1_000_000,
-            decimal::from(500_000),
-            decimal::from(1),
-            1,
-            test_scenario::ctx(&mut scenario)
-        );
-
-        let coins = balance::create_for_testing<TEST_USDC>(1);
-        let ctokens = deposit_liquidity_and_mint_ctokens(&mut reserve, coins);
-
-        sui::test_utils::destroy(reserve);
-        sui::test_utils::destroy(ctokens);
-        test_scenario::end(scenario);
-    }
-
-    #[test]
-    fun test_redeem_happy() {
-        use suilend::test_usdc::{TEST_USDC};
-        use sui::test_scenario::{Self};
-        use suilend::reserve_config::{default_reserve_config};
-
-        let owner = @0x26;
-        let mut scenario = test_scenario::begin(owner);
-
-        let mut reserve = create_for_testing<TEST_LM, TEST_USDC>(
-            default_reserve_config(),
-            0,
-            6,
-            decimal::from(1),
-            0,
-            500,
-            200,
-            decimal::from(500),
-            decimal::from(1),
-            1,
-            test_scenario::ctx(&mut scenario)
-        );
-
-        let available_amount_old = reserve.available_amount;
-        let ctoken_supply_old = reserve.ctoken_supply;
-
-        let ctokens = balance::create_for_testing(10);
-        let tokens = redeem_ctokens<TEST_LM, TEST_USDC>(&mut reserve, ctokens);
-
-        assert!(balance::value(&tokens) == 50, 0);
-        assert!(reserve.available_amount == available_amount_old - 50, 0);
-        assert!(reserve.ctoken_supply == ctoken_supply_old - 10, 0);
-
-        let balances: &mut Balances<TEST_LM, TEST_USDC> = dynamic_field::borrow_mut(
-            &mut reserve.id, 
-            BalanceKey {}
-        );
-
-        assert!(balance::value(&balances.available_amount) == available_amount_old - 50, 0);
-        assert!(balance::supply_value(&balances.ctoken_supply) == ctoken_supply_old - 10, 0);
-
-        sui::test_utils::destroy(reserve);
-        sui::test_utils::destroy(tokens);
-
-        test_scenario::end(scenario);
-    }
-
-    #[test]
-    fun test_borrow_happy() {
-        use suilend::test_usdc::{TEST_USDC};
-        use sui::test_scenario::{Self};
-        use suilend::reserve_config::{default_reserve_config};
-
-        let owner = @0x26;
-        let mut scenario = test_scenario::begin(owner);
-
-        let mut reserve = create_for_testing<TEST_LM, TEST_USDC>(
-            {
-                let config = default_reserve_config();
-                let mut builder = reserve_config::from(&config, test_scenario::ctx(&mut scenario));
-                reserve_config::set_borrow_fee_bps(&mut builder, 100);
-                sui::test_utils::destroy(config);
-
-                reserve_config::build(builder, test_scenario::ctx(&mut scenario))
-            },
-            0,
-            6,
-            decimal::from(1),
-            0,
-            0,
-            0,
-            decimal::from(0),
-            decimal::from(1),
-            1,
-            test_scenario::ctx(&mut scenario)
-        );
-
-        let ctokens = deposit_liquidity_and_mint_ctokens<TEST_LM, TEST_USDC>(
-            &mut reserve, 
-            balance::create_for_testing(1000)
-        );
-
-        let available_amount_old = reserve.available_amount;
-        let borrowed_amount_old = reserve.borrowed_amount;
-
-        let (tokens, borrowed_amount_with_fee) = borrow_liquidity<TEST_LM, TEST_USDC>(&mut reserve, 400);
-        assert!(balance::value(&tokens) == 400, 0);
-        assert!(borrowed_amount_with_fee == 404, 0);
-
-        assert!(reserve.available_amount == available_amount_old - 404, 0);
-        assert!(reserve.borrowed_amount == add(borrowed_amount_old, decimal::from(404)), 0);
-
-        let balances: &mut Balances<TEST_LM, TEST_USDC> = dynamic_field::borrow_mut(
-            &mut reserve.id, 
-            BalanceKey {}
-        );
-
-        assert!(balance::value(&balances.available_amount) == available_amount_old - 404, 0);
-        assert!(balance::value(&balances.fees) == 4, 0);
-
-        let (ctoken_fees, fees) = claim_fees<TEST_LM, TEST_USDC>(&mut reserve);
-        assert!(balance::value(&fees) == 4, 0);
-        assert!(balance::value(&ctoken_fees) == 0, 0);
-
-        sui::test_utils::destroy(fees);
-        sui::test_utils::destroy(ctoken_fees);
-        sui::test_utils::destroy(reserve);
-        sui::test_utils::destroy(tokens);
-        sui::test_utils::destroy(ctokens);
-
-        test_scenario::end(scenario);
-    }
-
-    #[test]
-    #[expected_failure(abort_code = EBorrowLimitExceeded)]
-    fun test_borrow_fail() {
-        use suilend::test_usdc::{TEST_USDC};
-        use sui::test_scenario::{Self};
-        use suilend::reserve_config::{default_reserve_config};
-
-        let owner = @0x26;
-        let mut scenario = test_scenario::begin(owner);
-
-        let mut reserve = create_for_testing<TEST_LM, TEST_USDC>(
-            {
-                let config = default_reserve_config();
-                let mut builder = reserve_config::from(&config, test_scenario::ctx(&mut scenario));
-                reserve_config::set_borrow_limit(&mut builder, 0);
-                sui::test_utils::destroy(config);
-
-                reserve_config::build(builder, test_scenario::ctx(&mut scenario))
-            },
-            0,
-            6,
-            decimal::from(1),
-            0,
-            0,
-            0,
-            decimal::from(0),
-            decimal::from(1),
-            1,
-            test_scenario::ctx(&mut scenario)
-        );
-
-        let ctokens = deposit_liquidity_and_mint_ctokens<TEST_LM, TEST_USDC>(
-            &mut reserve, 
-            balance::create_for_testing(1000)
-        );
-
-        let (tokens, _) = borrow_liquidity<TEST_LM, TEST_USDC>(&mut reserve, 1);
-
-        sui::test_utils::destroy(reserve);
-        sui::test_utils::destroy(tokens);
-        sui::test_utils::destroy(ctokens);
-
-        test_scenario::end(scenario);
-    }
-
-    #[test]
-    #[expected_failure(abort_code = EBorrowLimitExceeded)]
-    fun test_borrow_fail_usd_limit() {
-        use suilend::test_usdc::{TEST_USDC};
-        use sui::test_scenario::{Self};
-        use suilend::reserve_config::{default_reserve_config};
-
-        let owner = @0x26;
-        let mut scenario = test_scenario::begin(owner);
-
-        let mut reserve = create_for_testing<TEST_LM, TEST_USDC>(
-            {
-                let config = default_reserve_config();
-                let mut builder = reserve_config::from(&config, test_scenario::ctx(&mut scenario));
-                reserve_config::set_borrow_limit_usd(&mut builder, 1);
-                sui::test_utils::destroy(config);
-
-                reserve_config::build(builder, test_scenario::ctx(&mut scenario))
-            },
-            0,
-            6,
-            decimal::from(1),
-            0,
-            0,
-            0,
-            decimal::from(0),
-            decimal::from(1),
-            1,
-            test_scenario::ctx(&mut scenario)
-        );
-
-        let ctokens = deposit_liquidity_and_mint_ctokens<TEST_LM, TEST_USDC>(
-            &mut reserve, 
-            balance::create_for_testing(10_000_000)
-        );
-
-        let (tokens, _) = borrow_liquidity<TEST_LM, TEST_USDC>(&mut reserve, 1_000_000 + 1);
-
-        sui::test_utils::destroy(reserve);
-        sui::test_utils::destroy(tokens);
-        sui::test_utils::destroy(ctokens);
-
-        test_scenario::end(scenario);
-    }
-
-
-    #[test]
-    fun test_claim_fees() {
-        use suilend::test_usdc::{TEST_USDC};
-        use sui::test_scenario::{Self};
-        use suilend::reserve_config::{default_reserve_config};
-
-        let owner = @0x26;
-        let mut scenario = test_scenario::begin(owner);
-        let mut clock = clock::create_for_testing(test_scenario::ctx(&mut scenario));
-
-        let mut reserve = create_for_testing<TEST_LM, TEST_USDC>(
-            {
-                let config = default_reserve_config();
-                let mut builder = reserve_config::from(&config, test_scenario::ctx(&mut scenario));
-                reserve_config::set_deposit_limit(&mut builder, 1000 * 1_000_000);
-                reserve_config::set_borrow_limit(&mut builder, 1000 * 1_000_000);
-                reserve_config::set_borrow_fee_bps(&mut builder, 0);
-                reserve_config::set_spread_fee_bps(&mut builder, 5000);
-                reserve_config::set_interest_rate_utils(&mut builder, {
-                    let mut v = vector::empty();
-                    vector::push_back(&mut v, 0);
-                    vector::push_back(&mut v, 100);
-                    v
-                });
-                reserve_config::set_interest_rate_aprs(&mut builder, {
-                    let mut v = vector::empty();
-                    vector::push_back(&mut v, 0);
-                    vector::push_back(&mut v, 3153600000);
-                    v
-                });
-
-                sui::test_utils::destroy(config);
-
-                reserve_config::build(builder, test_scenario::ctx(&mut scenario))
-            },
-            0,
-            6,
-            decimal::from(1),
-            0,
-            0,
-            0,
-            decimal::from(0),
-            decimal::from(1),
-            0,
-            test_scenario::ctx(&mut scenario)
-        );
-
-        let ctokens = deposit_liquidity_and_mint_ctokens<TEST_LM, TEST_USDC>(
-            &mut reserve, 
-            balance::create_for_testing(100 * 1_000_000)
-        );
-
-        let (tokens, _) = borrow_liquidity<TEST_LM, TEST_USDC>(&mut reserve, 50 * 1_000_000);
-
-        clock::set_for_testing(&mut clock, 1000);
-        compound_interest(&mut reserve, &clock);
-
-        let old_available_amount = reserve.available_amount;
-        let old_unclaimed_spread_fees = reserve.unclaimed_spread_fees;
-
-        let (ctoken_fees, fees) = claim_fees<TEST_LM, TEST_USDC>(&mut reserve);
-
-        // 0.5% interest a second with 50% take rate => 0.25% fee on 50 USDC = 0.125 USDC
-        assert!(balance::value(&fees) == 125_000, 0);
-        assert!(balance::value(&ctoken_fees) == 0, 0);
-
-        assert!(reserve.available_amount == old_available_amount - 125_000, 0);
-        assert!(reserve.unclaimed_spread_fees == sub(old_unclaimed_spread_fees, decimal::from(125_000)), 0);
-
-        let balances: &mut Balances<TEST_LM, TEST_USDC> = dynamic_field::borrow_mut(
-            &mut reserve.id, 
-            BalanceKey {}
-        );
-        assert!(balance::value(&balances.available_amount) == old_available_amount - 125_000, 0);
-
-        sui::test_utils::destroy(clock);
-        sui::test_utils::destroy(ctoken_fees);
-        sui::test_utils::destroy(fees);
-        sui::test_utils::destroy(reserve);
-        sui::test_utils::destroy(tokens);
-        sui::test_utils::destroy(ctokens);
-
-        test_scenario::end(scenario);
-    }
-
-    #[test]
-    fun test_repay_happy() {
-        use suilend::test_usdc::{TEST_USDC};
-        use sui::test_scenario::{Self};
-        use suilend::reserve_config::{default_reserve_config};
-
-        let owner = @0x26;
-        let mut scenario = test_scenario::begin(owner);
-
-        let mut reserve = create_for_testing<TEST_LM, TEST_USDC>(
-            {
-                let config = default_reserve_config();
-                let mut builder = reserve_config::from(&config, test_scenario::ctx(&mut scenario));
-                reserve_config::set_borrow_fee_bps(&mut builder, 100);
-                sui::test_utils::destroy(config);
-
-                reserve_config::build(builder, test_scenario::ctx(&mut scenario))
-            },
-            0,
-            6,
-            decimal::from(1),
-            0,
-            0,
-            0,
-            decimal::from(0),
-            decimal::from(1),
-            1,
-            test_scenario::ctx(&mut scenario)
-        );
-
-        let ctokens = deposit_liquidity_and_mint_ctokens<TEST_LM, TEST_USDC>(
-            &mut reserve, 
-            balance::create_for_testing(1000)
-        );
-
-        let (tokens, _) = borrow_liquidity<TEST_LM, TEST_USDC>(&mut reserve, 400);
-
-        let available_amount_old = reserve.available_amount;
-        let borrowed_amount_old = reserve.borrowed_amount;
-
-        repay_liquidity(&mut reserve, tokens, decimal::from_percent_u64(39_901));
-
-        assert!(reserve.available_amount == available_amount_old + 400, 0);
-        assert!(reserve.borrowed_amount == sub(borrowed_amount_old, decimal::from_percent_u64(39_901)), 0);
-
-        let balances: &mut Balances<TEST_LM, TEST_USDC> = dynamic_field::borrow_mut(
-            &mut reserve.id, 
-            BalanceKey {}
-        );
-        assert!(balance::value(&balances.available_amount) == available_amount_old + 400, 0);
-
-        sui::test_utils::destroy(reserve);
-        sui::test_utils::destroy(ctokens);
-
-        test_scenario::end(scenario);
-    }
 
     #[test_only]
     public fun create_for_testing<P, T>(
