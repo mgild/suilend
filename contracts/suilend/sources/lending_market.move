@@ -769,6 +769,15 @@ module suilend::lending_market {
         object_table::borrow(&lending_market.obligations, obligation_id)
     }
 
+    public fun fee_receiver<P>(lending_market: &LendingMarket<P>): address {
+        lending_market.fee_receiver
+    }
+
+    public use fun rate_limiter_exemption_amount as RateLimiterExemption.amount;
+    public fun rate_limiter_exemption_amount<P, T>(exemption: &RateLimiterExemption<P, T>): u64 {
+        exemption.amount
+    }
+
     // === Admin Functions ===
     entry fun migrate<P>(
         _: &LendingMarketOwnerCap<P>,
@@ -1071,14 +1080,4 @@ module suilend::lending_market {
         let LendingMarketOwnerCap { id, lending_market_id: _ } = lending_market_owner_cap;
         object::delete(id);
     }
-
-    public fun fee_receiver<P>(lending_market: &LendingMarket<P>): address {
-        lending_market.fee_receiver
-    }
-
-    public use fun rate_limiter_exemption_amount as RateLimiterExemption.amount;
-    public fun rate_limiter_exemption_amount<P, T>(exemption: &RateLimiterExemption<P, T>): u64 {
-        exemption.amount
-    }
-
 }

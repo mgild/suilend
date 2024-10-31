@@ -440,6 +440,38 @@ module suilend::reserve {
         ))
     }
 
+    public fun ctoken_supply<P>(reserve: &Reserve<P>): u64 {
+        reserve.ctoken_supply
+    }
+
+    public fun unclaimed_spread_fees<P>(reserve: &Reserve<P>): Decimal {
+        reserve.unclaimed_spread_fees
+    }
+
+    public fun balances<P, T>(reserve: &Reserve<P>): &Balances<P, T> {
+        dynamic_field::borrow(&reserve.id, BalanceKey {})
+    }
+
+    public use fun balances_available_amount as Balances.available_amount;
+    public fun balances_available_amount<P, T>(balances: &Balances<P, T>): &Balance<T> {
+        &balances.available_amount
+    }
+
+    public use fun balances_ctoken_supply as Balances.ctoken_supply;
+    public fun balances_ctoken_supply<P, T>(balances: &Balances<P, T>): &Supply<CToken<P, T>> {
+        &balances.ctoken_supply
+    }
+
+    public use fun balances_fees as Balances.fees;
+    public fun balances_fees<P, T>(balances: &Balances<P, T>): &Balance<T> {
+        &balances.fees
+    }
+
+    public use fun balances_ctoken_fees as Balances.ctoken_fees;
+    public fun balances_ctoken_fees<P, T>(balances: &Balances<P, T>): &Balance<CToken<P, T>> {
+        &balances.ctoken_fees
+    }
+
     // === Public-Mutative Functions
     public(package) fun deposits_pool_reward_manager_mut<P>(reserve: &mut Reserve<P>): &mut PoolRewardManager {
         &mut reserve.deposits_pool_reward_manager
@@ -779,38 +811,6 @@ module suilend::reserve {
     }
 
     // === Test Functions ===
-    public fun ctoken_supply<P>(reserve: &Reserve<P>): u64 {
-        reserve.ctoken_supply
-    }
-
-    public fun unclaimed_spread_fees<P>(reserve: &Reserve<P>): Decimal {
-        reserve.unclaimed_spread_fees
-    }
-
-    public fun balances<P, T>(reserve: &Reserve<P>): &Balances<P, T> {
-        dynamic_field::borrow(&reserve.id, BalanceKey {})
-    }
-
-    public use fun balances_available_amount as Balances.available_amount;
-    public fun balances_available_amount<P, T>(balances: &Balances<P, T>): &Balance<T> {
-        &balances.available_amount
-    }
-
-    public use fun balances_ctoken_supply as Balances.ctoken_supply;
-    public fun balances_ctoken_supply<P, T>(balances: &Balances<P, T>): &Supply<CToken<P, T>> {
-        &balances.ctoken_supply
-    }
-
-    public use fun balances_fees as Balances.fees;
-    public fun balances_fees<P, T>(balances: &Balances<P, T>): &Balance<T> {
-        &balances.fees
-    }
-
-    public use fun balances_ctoken_fees as Balances.ctoken_fees;
-    public fun balances_ctoken_fees<P, T>(balances: &Balances<P, T>): &Balance<CToken<P, T>> {
-        &balances.ctoken_fees
-    }
-
     #[test_only]
     public fun update_price_for_testing<P>(
         reserve: &mut Reserve<P>, 
