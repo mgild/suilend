@@ -1072,15 +1072,11 @@ module suilend::lending_market {
         object::delete(id);
     }
 
-    #[test_only]
     public fun fee_receiver<P>(lending_market: &LendingMarket<P>): address {
         lending_market.fee_receiver
     }
 
-    #[test_only]
     public use fun rate_limiter_exemption_amount as RateLimiterExemption.amount;
-
-    #[test_only]
     public fun rate_limiter_exemption_amount<P, T>(exemption: &RateLimiterExemption<P, T>): u64 {
         exemption.amount
     }

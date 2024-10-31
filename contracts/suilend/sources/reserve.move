@@ -779,49 +779,34 @@ module suilend::reserve {
     }
 
     // === Test Functions ===
-    #[test_only]
     public fun ctoken_supply<P>(reserve: &Reserve<P>): u64 {
         reserve.ctoken_supply
     }
 
-    #[test_only]
     public fun unclaimed_spread_fees<P>(reserve: &Reserve<P>): Decimal {
         reserve.unclaimed_spread_fees
     }
 
-    #[test_only]
     public fun balances<P, T>(reserve: &Reserve<P>): &Balances<P, T> {
         dynamic_field::borrow(&reserve.id, BalanceKey {})
     }
 
-    #[test_only]
     public use fun balances_available_amount as Balances.available_amount;
-
-    #[test_only]
     public fun balances_available_amount<P, T>(balances: &Balances<P, T>): &Balance<T> {
         &balances.available_amount
     }
 
-    #[test_only]
     public use fun balances_ctoken_supply as Balances.ctoken_supply;
-
-    #[test_only]
     public fun balances_ctoken_supply<P, T>(balances: &Balances<P, T>): &Supply<CToken<P, T>> {
         &balances.ctoken_supply
     }
 
-    #[test_only]
     public use fun balances_fees as Balances.fees;
-
-    #[test_only]
     public fun balances_fees<P, T>(balances: &Balances<P, T>): &Balance<T> {
         &balances.fees
     }
 
-    #[test_only]
     public use fun balances_ctoken_fees as Balances.ctoken_fees;
-
-    #[test_only]
     public fun balances_ctoken_fees<P, T>(balances: &Balances<P, T>): &Balance<CToken<P, T>> {
         &balances.ctoken_fees
     }
