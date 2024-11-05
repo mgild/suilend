@@ -6,11 +6,10 @@ module suilend::obligation {
     use std::vector::{Self};
     use sui::event::{Self};
     use sui::tx_context::{TxContext};
-    use sui::dynamic_field::{Self as df};
     use suilend::reserve::{Self, Reserve, config};
     use suilend::reserve_config::{
-        Self, 
-        open_ltv,
+        Self,
+        open_ltv, 
         close_ltv, 
         borrow_weight, 
         liquidation_bonus, 
@@ -20,14 +19,9 @@ module suilend::obligation {
         close_ltv_emode,
     };
     use sui::clock::{Clock};
+    use sui::dynamic_field::{Self as df};
     use suilend::decimal::{Self, Decimal, mul, add, sub, div, gt, lt, min, floor, le, eq, saturating_sub};
     use suilend::liquidity_mining::{Self, UserRewardManager, PoolRewardManager};
-
-    #[test_only]
-    use sui::test_scenario::{Self, Scenario};
-
-    #[test_only]
-    use sui::clock::{Self};
 
     // === Errors ===
     const EObligationIsNotLiquidatable: u64 = 0;
