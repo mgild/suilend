@@ -12,6 +12,12 @@ git = "https://github.com/solendprotocol/pyth-crosschain.git"
 subdir = "target_chains/sui/contracts"
 rev = "98e218c64bb75cf1350eb7b021e1ffcc3aedfd62"
 
+[dependencies.Switchboard]
+git = "https://github.com/switchboard-xyz/sui.git"
+subdir = "on_demand"
+rev = "main"
+
 [addresses]
 oracle = "0xff"
 pyth = "0x8d97f1cd6ac663735be08d1d2b6d02a159e711586461306ce60a2b7a6a565a9e"
+switchboard = "0x0b884dbc39d915f32a82cc62dabad75ca3efd3c568c329eba270b03c6f58cbd8"
